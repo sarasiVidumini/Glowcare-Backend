@@ -1,5 +1,7 @@
 package lk.ijse.glowcare_backend.config;
 
+import lk.ijse.glowcare_backend.security.CustomOAuth2AuthorizationRequestResolver;
+import lk.ijse.glowcare_backend.security.OAuth2AuthenticationSuccessHandler;
 import lk.ijse.glowcare_backend.util.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -29,6 +31,8 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
 
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final CustomOAuth2AuthorizationRequestResolver customAuthorizationRequestResolver;
     // --- MOVED PASSWORD ENCODER HERE TO FIX AUTOWIRE CRASH ---
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -46,6 +50,15 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
                         .anyRequest().authenticated()
                 )
+
+                // --- UNCOMMENTED OAUTH2 CONFIGURATION ---
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authEndpoint -> authEndpoint
+                                .authorizationRequestResolver(customAuthorizationRequestResolver)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                )
+
                 .authenticationProvider(authenticateProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
