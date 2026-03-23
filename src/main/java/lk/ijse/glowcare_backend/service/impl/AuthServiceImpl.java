@@ -1,8 +1,13 @@
 package lk.ijse.glowcare_backend.service.impl;
 
+// Update these imports if you moved them to .dto.request / .dto.response
 import lk.ijse.glowcare_backend.dto.AuthRequest;
 import lk.ijse.glowcare_backend.dto.RegisterRequest;
 import lk.ijse.glowcare_backend.dto.AuthResponse;
+
+import lk.ijse.glowcare_backend.entity.ClientProfile;
+import lk.ijse.glowcare_backend.entity.DoctorProfile;
+import lk.ijse.glowcare_backend.entity.ExpertProfile;
 import lk.ijse.glowcare_backend.entity.User;
 import lk.ijse.glowcare_backend.repository.UserRepository;
 import lk.ijse.glowcare_backend.service.AuthService;
@@ -29,7 +34,7 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Email is already registered!");
         }
 
-        // 2. Create the new user and encode their password
+        // 2. Create the base User entity
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -38,19 +43,53 @@ public class AuthServiceImpl implements AuthService {
                 .authProvider("LOCAL")
                 .build();
 
-        // 3. Save to database
+        // 3. Automatically create the specific Profile based on the Role
+        switch (request.getRole()) {
+            case CLIENT:
+                ClientProfile clientProfile = new ClientProfile();
+                clientProfile.setUser(user);
+                user.setClientProfile(clientProfile); // Link bidirectionally
+                break;
+
+            case DOCTOR:
+                if (request.getLicenseNumber() == null || request.getLicenseNumber().trim().isEmpty()) {
+                    throw new RuntimeException("License Number is required for Doctors!");
+                }
+                DoctorProfile doctorProfile = new DoctorProfile();
+                doctorProfile.setUser(user);
+                doctorProfile.setLicenseNumber(request.getLicenseNumber());
+                user.setDoctorProfile(doctorProfile); // Link bidirectionally
+                break;
+
+            case EXPERT:
+                if (request.getLicenseNumber() == null || request.getLicenseNumber().trim().isEmpty()) {
+                    throw new RuntimeException("License Number is required for Clinical Experts!");
+                }
+                ExpertProfile expertProfile = new ExpertProfile();
+                expertProfile.setUser(user);
+                expertProfile.setLicenseNumber(request.getLicenseNumber());
+                user.setExpertProfile(expertProfile); // Link bidirectionally
+                break;
+
+            case ADMIN:
+                // Admins typically don't need a public profile table, so we just pass
+                break;
+        }
+
+        // 4. Save to database.
+        // Thanks to CascadeType.ALL, this single save will insert the User AND their Profile into the DB!
         userRepository.save(user);
 
-        // 4. Generate JWT Token
+        // 5. Generate JWT Token
         String jwtToken = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        // 5. Return success response to React
+        // 6. Return success response to React
         return AuthResponse.builder()
                 .token(jwtToken)
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .message("User registered successfully")
+                .message("Account created successfully as " + request.getRole())
                 .build();
     }
 
