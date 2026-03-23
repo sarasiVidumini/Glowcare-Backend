@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "users") // "user" is a reserved keyword in some databases (like PostgreSQL), so we use "users"
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,14 +22,24 @@ public class User {
     @Column(nullable = false)
     private String name;
 
-    // This can be null if they sign in with Google!
     private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
-    // --- Google OAuth2 Tracking Fields ---
-    private String authProvider; // e.g., "LOCAL" or "GOOGLE"
-    private String providerId;   // Google's unique subject ID
+    private String authProvider;
+    private String providerId;
+
+    // --- Profile Mappings (Bidirectional) ---
+    // CascadeType.ALL means if we delete the User, their profile is automatically deleted too!
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private ClientProfile clientProfile;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private DoctorProfile doctorProfile;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private ExpertProfile expertProfile;
 }

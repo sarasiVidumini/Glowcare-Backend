@@ -15,4 +15,5 @@ public class RegisterRequest {
     private String email;
     private String password;
     private Role role; // ADMIN, CLIENT, DOCTOR, EXPERT
+    private String licenseNumber;
 }
