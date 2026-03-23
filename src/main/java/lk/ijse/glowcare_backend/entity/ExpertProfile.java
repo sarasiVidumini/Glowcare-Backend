@@ -21,7 +21,7 @@ public class ExpertProfile {
     private User user;
 
     // Expert specific fields
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true, unique = true)
     private String licenseNumber;
 
     @Column(length = 1000)

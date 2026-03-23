@@ -38,8 +38,5 @@ public class User {
     private ClientProfile clientProfile;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private DoctorProfile doctorProfile;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ExpertProfile expertProfile;
 }

@@ -1,11 +1,8 @@
 package lk.ijse.glowcare_backend.security;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lk.ijse.glowcare_backend.entity.ClientProfile;
-import lk.ijse.glowcare_backend.entity.Role;
-import lk.ijse.glowcare_backend.entity.User;
+import lk.ijse.glowcare_backend.entity.*;
 import lk.ijse.glowcare_backend.repository.UserRepository;
 import lk.ijse.glowcare_backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -24,53 +21,34 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final UserRepository userRepository;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-
-        // 1. Get user details from Google
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication auth) throws IOException {
+        OAuth2User oAuth2User = (OAuth2User) auth.getPrincipal();
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
-        String googleId = oAuth2User.getAttribute("sub");
 
-        // 2. Fetch the role they selected from the session (Fallback to CLIENT if missing)
-        Role role = Role.CLIENT;
-        String requestedRole = (String) request.getSession().getAttribute("oauth2_role");
-        if (requestedRole != null) {
-            try {
-                role = Role.valueOf(requestedRole.toUpperCase());
-            } catch (IllegalArgumentException ignored) {}
-        }
-
-        // 3. Check if user exists in the database
+        boolean isNewUser = false;
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
-            // NEW USER: Register them automatically!
+            isNewUser = true;
+            String sessionRole = (String) request.getSession().getAttribute("oauth2_role");
+            Role role = (sessionRole != null) ? Role.valueOf(sessionRole.toUpperCase()) : Role.CLIENT;
+
+            // Save ONLY the base user.
+            // The profile will be created in the AuthServiceImpl.completeProfile method.
             user = User.builder()
                     .email(email)
                     .name(name)
                     .role(role)
                     .authProvider("GOOGLE")
-                    .providerId(googleId)
                     .build();
-
-            // Setup profile (Usually Google sign-ups are Clients. Doctors/Experts require manual license verification later)
-            if (role == Role.CLIENT) {
-                ClientProfile profile = new ClientProfile();
-                profile.setUser(user);
-                user.setClientProfile(profile);
-            }
 
             userRepository.save(user);
         }
 
-        // 4. Generate the JWT Token for the User
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        // 5. Redirect back to React frontend with the token securely in the URL!
-        // NOTE: Adjust the port (5173 or 5174) based on where your Vite React app is running
-        String targetUrl = "http://localhost:5173/oauth2/redirect?token=" + token;
-
+        String targetUrl = "http://localhost:5173/oauth2/redirect?token=" + token + "&new=" + isNewUser;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }
