@@ -9,8 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -25,20 +23,15 @@ public class ApplicationConfig {
         return username -> userRepository.findByEmail(username)
                 .map(user -> new org.springframework.security.core.userdetails.User(
                         user.getEmail(),
-                        user.getPassword(), // This might be null for OAuth2 users, which is fine
+                        // If password is null (Google Login), we provide an empty string so Spring doesn't crash
+                        user.getPassword() != null ? user.getPassword() : "",
                         List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-                )).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+                )).orElseThrow(() -> new UsernameNotFoundException("User not found in database"));
     }
 
     @Bean
     public ModelMapper getModelMapper() {
         ModelMapper modelMapper = new ModelMapper();
-        // Strict matching prevents weird bug where ModelMapper guesses the wrong fields
         modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
         return modelMapper;
     }
