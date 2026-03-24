@@ -45,13 +45,21 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
+                        // 1. Allow pre-flight OPTIONS requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 2. Public Auth Endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+
+                        // 3. SECURE THE USERS API: Allow ADMIN to access these
+                        // We permit them here so the JWT filter can handle the specific identity
+                        .requestMatchers("/api/v1/users/**").permitAll()
+
+                        // 4. Everything else must be authenticated
                         .anyRequest().authenticated()
                 )
 
-                // --- UNCOMMENTED OAUTH2 CONFIGURATION ---
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authEndpoint -> authEndpoint
                                 .authorizationRequestResolver(customAuthorizationRequestResolver)
@@ -60,6 +68,7 @@ public class SecurityConfig {
                 )
 
                 .authenticationProvider(authenticateProvider())
+                // This is the most important line - it checks for the Admin's JWT before the login page
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
