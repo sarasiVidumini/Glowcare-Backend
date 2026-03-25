@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +29,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // 🛡️ THE SHIELD: Let browser preflight (OPTIONS) requests pass through immediately
+        // 1. Handle CORS Pre-flight
         if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
             filterChain.doFilter(request, response);
             return;
@@ -37,7 +39,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String jwtToken;
         final String username;
 
-        // If there's no token, let it continue (it might be a public endpoint like /login)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -52,15 +53,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.validateToken(jwtToken)) {
+
+                    // 🚀 CRITICAL: Assign ADMIN authority if the email matches
+                    var authorities = userDetails.getAuthorities();
+                    if (username.equalsIgnoreCase("admin@glowcare.ai")) {
+                        authorities = List.of(new SimpleGrantedAuthority("ADMIN"));
+                    }
+
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
+                                    userDetails,
+                                    null,
+                                    authorities
+                            );
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            System.out.println("Ignored invalid or expired JWT token: " + e.getMessage());
+            System.err.println("JWT Verification Error: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);

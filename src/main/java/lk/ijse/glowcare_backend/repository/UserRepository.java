@@ -11,5 +11,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // Spring Data JPA magically writes the SQL query for this!
     Optional<User> findByEmail(String email);
+    /**
+     * Counts the number of accounts based on their role.
+     * Used by AdminService to populate the "Expert Network" and "Total Entities" cards.
+     * @param role The role string (e.g., "expert", "user")
+     * @return count of users with that specific role
+     */
+    long countByRole(String role);
+
 
 }
