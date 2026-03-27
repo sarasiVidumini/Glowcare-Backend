@@ -36,7 +36,7 @@ public class SecurityConfig {
 
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final CustomOAuth2AuthorizationRequestResolver customAuthorizationRequestResolver;
-    // --- MOVED PASSWORD ENCODER HERE TO FIX AUTOWIRE CRASH ---
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -56,13 +56,12 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
 
                         // 3. SECURE THE USERS API: Allow ADMIN to access these
-                        // We permit them here so the JWT filter can handle the specific identity
                         .requestMatchers("/api/v1/users/**").permitAll()
-
                         .requestMatchers("/api/v1/routines/**").permitAll()
-
-                        // TEMPORARY TEST ONLY
                         .requestMatchers("/api/v1/experts/**").permitAll()
+
+                        // 🚀 NEW: UNLOCK THE NOTIFICATIONS API
+                        .requestMatchers("/api/v1/routine-notifications/**").permitAll()
 
                         // 4. Everything else must be authenticated
                         .anyRequest().authenticated()
@@ -98,7 +97,6 @@ public class SecurityConfig {
     @Bean
     public AuthenticationProvider authenticateProvider() {
         DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider(userDetailsService);
-        // Uses the bean we defined at the top of this class!
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
         return daoAuthenticationProvider;
     }
