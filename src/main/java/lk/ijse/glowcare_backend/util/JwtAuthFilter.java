@@ -57,7 +57,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     // 🚀 CRITICAL: Assign ADMIN authority if the email matches
                     var authorities = userDetails.getAuthorities();
                     if (username.equalsIgnoreCase("admin@glowcare.ai")) {
-                        authorities = List.of(new SimpleGrantedAuthority("ADMIN"));
+                        authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
                     }
 
                     UsernamePasswordAuthenticationToken authToken =

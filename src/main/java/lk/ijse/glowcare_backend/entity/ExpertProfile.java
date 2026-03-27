@@ -16,15 +16,17 @@ public class ExpertProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
     private User user;
 
     // Expert specific fields
     @Column(nullable = true, unique = true)
     private String licenseNumber;
 
-    @Column(length = 1000)
+    private String expertiseArea;
+
+    @Column(columnDefinition = "TEXT")
     private String bio;
-    private String expertiseArea; // e.g., Ayurvedic Skincare, Cosmetology
+
 }

@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ExpertProfileRepository extends JpaRepository<ExpertProfile, Long> {
+
+    boolean existsByLicenseNumber(String licenseNumber);
 }

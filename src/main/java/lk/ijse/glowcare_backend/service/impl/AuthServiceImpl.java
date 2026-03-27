@@ -29,42 +29,66 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        // 1. Check for duplicate email
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("Email is already registered!");
         }
 
+        // 2. Build the base User Entity
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
-                .password(request.getPassword() != null ? passwordEncoder.encode(request.getPassword()) : null)
+                .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .authProvider("LOCAL")
                 .build();
 
-        // Local registration provides all data at once
-        if (request.getRole() == Role.CLIENT) {
+        // 3. Conditional Profile Creation (Directly from UI fields)
+        if (request.getRole() == Role.EXPERT) {
+            ExpertProfile profile = ExpertProfile.builder()
+                    .user(user)
+                    .licenseNumber(request.getLicenseNumber())
+                    .expertiseArea(request.getExpertiseArea())
+                    .bio(request.getBio())
+                    .build();
+            user.setExpertProfile(profile);
+        } else {
             ClientProfile profile = new ClientProfile();
             profile.setUser(user);
             user.setClientProfile(profile);
-        } else if (request.getRole() == Role.EXPERT) {
-            ExpertProfile profile = new ExpertProfile();
-            profile.setUser(user);
-            profile.setLicenseNumber(request.getLicenseNumber());
-            user.setExpertProfile(profile);
         }
 
+        // 4. Save to Database
         userRepository.save(user);
+
+        // 5. Generate and Return Token
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 
-        return AuthResponse.builder().token(token).name(user.getName()).email(user.getEmail()).role(user.getRole()).build();
+        return AuthResponse.builder()
+                .token(token)
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 
     @Override
     public AuthResponse authenticate(AuthRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        return AuthResponse.builder().token(token).name(user.getName()).email(user.getEmail()).role(user.getRole()).build();
+
+        return AuthResponse.builder()
+                .token(token)
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 
     @Override

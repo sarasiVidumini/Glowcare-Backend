@@ -61,6 +61,9 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/v1/routines/**").permitAll()
 
+                        // TEMPORARY TEST ONLY
+                        .requestMatchers("/api/v1/experts/**").permitAll()
+
                         // 4. Everything else must be authenticated
                         .anyRequest().authenticated()
                 )
