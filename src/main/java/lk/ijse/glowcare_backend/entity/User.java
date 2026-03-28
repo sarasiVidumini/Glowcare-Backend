@@ -44,4 +44,12 @@ public class User {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ExpertProfile expertProfile;
+
+    // Add these inside your User.java entity
+    @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PrivateChatMessage> sentPrivateMessages;
+
+    @OneToMany(mappedBy = "receiver", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PrivateChatMessage> receivedPrivateMessages;
+
 }
