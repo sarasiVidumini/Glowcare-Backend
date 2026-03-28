@@ -3,6 +3,8 @@ package lk.ijse.glowcare_backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -33,6 +35,9 @@ public class User {
 
     // --- Profile Mappings (Bidirectional) ---
     // CascadeType.ALL means if we delete the User, their profile is automatically deleted too!
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PublicChatMessage> chatMessages;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ClientProfile clientProfile;
