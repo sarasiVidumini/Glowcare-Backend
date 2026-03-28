@@ -55,13 +55,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
 
-                        // 3. SECURE THE USERS API: Allow ADMIN to access these
+                        // 3. Existing API Endpoints
                         .requestMatchers("/api/v1/users/**").permitAll()
                         .requestMatchers("/api/v1/routines/**").permitAll()
                         .requestMatchers("/api/v1/experts/**").permitAll()
-
-                        // 🚀 NEW: UNLOCK THE NOTIFICATIONS API
                         .requestMatchers("/api/v1/routine-notifications/**").permitAll()
+
+                        // 🤖 AI BOT CONFIGURATION
+                        .requestMatchers("/api/v1/glowbot/**").permitAll()
+
+                        // 🚀 WEBSOCKET & COMMUNITY CHAT CONFIGURATION
+                        .requestMatchers("/ws/**").permitAll()                 // Opens the WebSocket connection
+                        .requestMatchers("/api/v1/chat/**").permitAll()        // Opens Chat History, Verification & Uploads
+                        .requestMatchers("/uploads/**").permitAll()            // Allows the frontend to view uploaded images
 
                         // 4. Everything else must be authenticated
                         .anyRequest().authenticated()
