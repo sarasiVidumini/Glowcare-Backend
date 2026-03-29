@@ -69,7 +69,17 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/chat/**").permitAll()        // Opens Chat History, Verification & Uploads
                         .requestMatchers("/uploads/**").permitAll()            // Allows the frontend to view uploaded images
 
-                        // 4. Everything else must be authenticated
+                        // 🏥 CLINICAL HUB CONFIGURATION
+                        // Public: Anyone can view the map and the doctors
+                        .requestMatchers(HttpMethod.GET, "/api/v1/clinical/physicians").permitAll()
+
+                        // 🛡️ ADMIN ONLY: Forces JWT Authentication for adding/updating/deleting doctors
+                        // (The Controller will then double-check that the JWT belongs to admin@glowcare.ai)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/clinical/physicians").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/clinical/physicians/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/clinical/physicians/**").authenticated()
+
+                        // 4. Everything else must be authenticated (This implicitly protects /api/v1/clinical/book)
                         .anyRequest().authenticated()
                 )
 
