@@ -57,6 +57,13 @@ public class SecurityConfig {
                         // 🛡️ ADMIN DASHBOARD (Locked to Authenticated Users)
                         .requestMatchers("/api/v1/admin/**").authenticated()
 
+                        // 🛡️ Lock clinical booking & admin physicians to authenticated users
+                        .requestMatchers("/api/v1/clinical/book").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/clinical/physicians").authenticated()
+
+                        // 🚀 Keep physician search public
+                        .requestMatchers(HttpMethod.GET, "/api/v1/clinical/physicians").permitAll()
+
                         // 🚀 PUBLIC ENDPOINTS
                         .requestMatchers("/api/v1/users/**", "/api/v1/routines/**", "/api/v1/experts/**").permitAll()
                         .requestMatchers("/api/v1/glowbot/**", "/ws/**", "/api/v1/chat/**", "/uploads/**").permitAll()
