@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -25,56 +26,49 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
-        // 1. Handle CORS Pre-flight
-        if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
-            filterChain.doFilter(request, response);
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
             return;
         }
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwtToken;
-        final String username;
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwtToken = authHeader.substring(7);
-
+        final String jwtToken = authHeader.substring(7);
         try {
-            username = jwtUtil.extractUsername(jwtToken);
-
+            final String username = jwtUtil.extractUsername(jwtToken);
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.validateToken(jwtToken)) {
-
-                    // 🚀 CRITICAL: Assign ADMIN authority if the email matches
-                    var authorities = userDetails.getAuthorities();
+                    List<SimpleGrantedAuthority> authorities;
+                    // 🛡️ Explicitly grant ADMIN to the superuser
                     if (username.equalsIgnoreCase("admin@glowcare.ai")) {
-                        authorities = List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                        authorities = Arrays.asList(
+                                new SimpleGrantedAuthority("ADMIN"),
+                                new SimpleGrantedAuthority("ROLE_ADMIN")
+                        );
+                    } else {
+                        authorities = (List<SimpleGrantedAuthority>) userDetails.getAuthorities();
                     }
 
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    authorities
-                            );
-
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, authorities
+                    );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            System.err.println("JWT Verification Error: " + e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
-
         filterChain.doFilter(request, response);
     }
 }
