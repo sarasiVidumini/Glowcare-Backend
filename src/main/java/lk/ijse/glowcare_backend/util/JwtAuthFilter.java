@@ -44,7 +44,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtUtil.validateToken(jwtToken)) {
-                    List<SimpleGrantedAuthority> authorities;
+                    // ✅ CHANGED: Use Collection instead of List
+                    java.util.Collection<? extends org.springframework.security.core.GrantedAuthority> authorities;
+
                     // 🛡️ Explicitly grant ADMIN to the superuser
                     if (username.equalsIgnoreCase("admin@glowcare.ai")) {
                         authorities = Arrays.asList(
@@ -52,7 +54,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                 new SimpleGrantedAuthority("ROLE_ADMIN")
                         );
                     } else {
-                        authorities = (List<SimpleGrantedAuthority>) userDetails.getAuthorities();
+                        // ✅ No more casting crash!
+                        authorities = userDetails.getAuthorities();
                     }
 
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -63,16 +66,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // 🚨 THE FIX: Do NOT return a 401 here!
-            // If the token is bad, expired, or the OAuth2 user isn't in the DB yet,
-            // we just clear the context so they act as an "anonymous" guest.
-            // If the endpoint is permitAll() (like /analysis), Spring lets them through!
-            // If the endpoint is authenticated(), Spring throws a proper 401 later.
             SecurityContextHolder.clearContext();
             System.err.println("JWT processing skipped for this request: " + e.getMessage());
         }
 
-        // 🚨 Always continue the chain!
         filterChain.doFilter(request, response);
     }
 }
