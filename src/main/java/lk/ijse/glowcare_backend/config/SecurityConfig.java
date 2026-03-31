@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**", "/api/v1/routines/**", "/api/v1/experts/**").permitAll()
                         .requestMatchers("/api/v1/glowbot/**", "/ws/**", "/api/v1/chat/**", "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/clinical/physicians").permitAll()
+                        .requestMatchers("/api/v1/analysis/**").permitAll()
 
                         .anyRequest().authenticated()
                 )

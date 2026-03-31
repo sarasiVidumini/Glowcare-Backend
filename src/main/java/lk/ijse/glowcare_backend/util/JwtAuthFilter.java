@@ -29,10 +29,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
+        // 🚨 REMOVED the manual OPTIONS block. Spring's .cors() in SecurityConfig handles this safely.
 
         final String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -66,9 +63,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            // 🚨 THE FIX: Do NOT return a 401 here!
+            // If the token is bad, expired, or the OAuth2 user isn't in the DB yet,
+            // we just clear the context so they act as an "anonymous" guest.
+            // If the endpoint is permitAll() (like /analysis), Spring lets them through!
+            // If the endpoint is authenticated(), Spring throws a proper 401 later.
+            SecurityContextHolder.clearContext();
+            System.err.println("JWT processing skipped for this request: " + e.getMessage());
         }
+
+        // 🚨 Always continue the chain!
         filterChain.doFilter(request, response);
     }
 }
