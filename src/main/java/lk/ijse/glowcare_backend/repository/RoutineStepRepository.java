@@ -12,4 +12,6 @@ public interface RoutineStepRepository extends JpaRepository<RoutineStep, Long> 
     // Custom query to filter formulas by the active tab
     List<RoutineStep> findByTimeOfDayIgnoreCase(String timeOfDay);
 
+    List<RoutineStep> findByPathCategoryAndZoneAndTimeOfDay(String pathCategory, String zone, String timeOfDay);
+
 }

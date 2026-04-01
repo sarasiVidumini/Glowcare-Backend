@@ -1,5 +1,6 @@
 package lk.ijse.glowcare_backend.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lk.ijse.glowcare_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -47,5 +48,10 @@ public class ApplicationConfig {
     @Bean
     public RestTemplate getRestTemplate() {
         return new RestTemplate();
+    }
+
+    @Bean
+    public ObjectMapper getObjectMapper() {
+        return new ObjectMapper();
     }
 }
