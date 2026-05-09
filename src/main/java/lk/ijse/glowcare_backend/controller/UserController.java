@@ -17,30 +17,49 @@ public class UserController {
 
     private final UserService userService;
 
-    // 1. GET ALL PROFILES
+    // ===============================
+    // 1. GET ALL USER PROFILES
+    // ===============================
     @GetMapping
     public ResponseEntity<List<UserProfilesDTO>> getAllUserProfiles() {
-        List<UserProfilesDTO> profiles = userService.getAllUserProfiles();
+
+        List<UserProfilesDTO> profiles =
+                userService.getAllUserProfiles();
+
         return ResponseEntity.ok(profiles);
     }
 
-    // 2. UPDATE PROFILE
+    // ===============================
+    // 2. UPDATE USER PROFILE
+    // ===============================
     @PutMapping("/{id}")
-    public ResponseEntity<String> updateUserProfile(
+    public ResponseEntity<?> updateUserProfile(
             @PathVariable Long id,
             @RequestBody UserProfilesDTO userProfilesDTO) {
 
+        try {
 
-        userProfilesDTO.setId(id);
+            userProfilesDTO.setId(id);
 
-        userService.updateUserProfile(userProfilesDTO);
-        return ResponseEntity.ok("User Profile Updated Successfully");
+            userService.updateUserProfile(userProfilesDTO);
+
+            return ResponseEntity.ok("User Profile Updated Successfully");
+
+        } catch (Exception e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body("Update Failed: " + e.getMessage());
+        }
     }
 
+    // ===============================
     // 3. DELETE USER
+    // ===============================
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body("User Deleted Successfully");
+        return ResponseEntity.ok("User Deleted Successfully");
     }
+
 }

@@ -44,63 +44,126 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-                // 🛡️ Added Stateless session management to ensure JWT is the primary auth
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
 
-                        // 🛡️ ADMIN DASHBOARD (Locked to Authenticated Users)
+                        // ===============================
+                        // PRIVATE CHAT ENDPOINTS
+                        // ===============================
+                        .requestMatchers("/api/v1/private-chat/**").authenticated()
+
+                        // ===============================
+                        // ADMIN
+                        // ===============================
                         .requestMatchers("/api/v1/admin/**").authenticated()
 
-                        // 🛡️ Lock clinical booking & admin physicians to authenticated users
+                        // ===============================
+                        // CLINICAL
+                        // ===============================
                         .requestMatchers("/api/v1/clinical/book").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/clinical/physicians").authenticated()
 
-                        // 🚀 Keep physician search public
-                        .requestMatchers(HttpMethod.GET, "/api/v1/clinical/physicians").permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/clinical/physicians"
+                        ).authenticated()
 
-                        // 🚀 PUBLIC ENDPOINTS
-                        .requestMatchers("/api/v1/users/**", "/api/v1/routines/**", "/api/v1/experts/**").permitAll()
-                        .requestMatchers("/api/v1/glowbot/**", "/ws/**", "/api/v1/chat/**", "/uploads/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/clinical/physicians").permitAll()
-                        .requestMatchers("/api/v1/analysis/**").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/clinical/physicians"
+                        ).permitAll()
+
+                        // ===============================
+                        // PUBLIC ENDPOINTS
+                        // ===============================
+                        .requestMatchers(
+                                "/api/v1/users/**",
+                                "/api/v1/routines/**",
+                                "/api/v1/experts/**",
+                                "/api/v1/glowbot/**",
+                                "/ws/**",
+                                "/api/v1/chat/**",
+                                "/uploads/**",
+                                "/api/v1/analysis/**"
+                        ).permitAll()
 
                         .anyRequest().authenticated()
                 )
+
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authEndpoint -> authEndpoint
-                                .authorizationRequestResolver(customAuthorizationRequestResolver)
+                        .authorizationEndpoint(authEndpoint ->
+                                authEndpoint.authorizationRequestResolver(
+                                        customAuthorizationRequestResolver
+                                )
                         )
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                 )
+
                 .authenticationProvider(authenticateProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+                .addFilterBefore(
+                        jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control", "Accept", "X-Requested-With"));
+
+        configuration.setAllowedOrigins(
+                List.of("http://localhost:5173")
+        );
+
+        configuration.setAllowedMethods(
+                Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        );
+
+        configuration.setAllowedHeaders(
+                Arrays.asList(
+                        "Authorization",
+                        "Content-Type",
+                        "Cache-Control",
+                        "Accept",
+                        "X-Requested-With"
+                )
+        );
+
         configuration.setAllowCredentials(true);
+
         configuration.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
+
     @Bean
     public AuthenticationProvider authenticateProvider() {
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider(userDetailsService);
+
+        DaoAuthenticationProvider daoAuthenticationProvider =
+                new DaoAuthenticationProvider(userDetailsService);
+
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+
         return daoAuthenticationProvider;
     }
 }

@@ -55,8 +55,17 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    @Override
+    @Transactional
     public void deleteUser(Long id) {
-        userRepository.deleteById(id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // 🔥 BREAK RELATIONS (IMPORTANT)
+        if (user.getAppointments() != null) {
+            user.getAppointments().forEach(app -> app.setUser(null));
+        }
+
+        userRepository.delete(user);
     }
 }

@@ -33,23 +33,42 @@ public class User {
     private String authProvider;
     private String providerId;
 
-    // --- Profile Mappings (Bidirectional) ---
-    // CascadeType.ALL means if we delete the User, their profile is automatically deleted too!
-
+    // =========================
+    // PUBLIC CHAT
+    // =========================
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PublicChatMessage> chatMessages;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    // =========================
+    // CLIENT PROFILE
+    // =========================
+    @OneToOne(mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY)
     private ClientProfile clientProfile;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    // =========================
+    // EXPERT PROFILE
+    // =========================
+    @OneToOne(mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY)
     private ExpertProfile expertProfile;
 
-    // Add these inside your User.java entity
+    // =========================
+    // PRIVATE CHAT
+    // =========================
     @OneToMany(mappedBy = "sender", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PrivateChatMessage> sentPrivateMessages;
 
     @OneToMany(mappedBy = "receiver", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PrivateChatMessage> receivedPrivateMessages;
 
+    // =========================
+    // APPOINTMENTS (IMPORTANT FIX AREA)
+    // =========================
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Appointment> appointments;
 }

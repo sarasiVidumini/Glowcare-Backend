@@ -17,8 +17,8 @@ public class ClientProfile {
     private Long id;
 
     // This links directly back to the User table!
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
     // Client specific fields
