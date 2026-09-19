@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -25,6 +26,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SmartEngineServiceImpl implements SmartEngineService {
+
+    // Groq deprecated llama-3.3-70b-versatile on 2026-08-16.
+    // Recommended replacements per Groq's deprecation notice: openai/gpt-oss-120b or qwen/qwen3.6-27b.
+    // Keep this in sync with SkinAnalysisServiceImpl.GROQ_MODEL — consider extracting to a shared
+    // @ConfigurationProperties bean so there's only one place to update next time Groq deprecates a model.
+    private static final String GROQ_MODEL = "openai/gpt-oss-120b";
 
     private final RoutineStepRepository routineStepRepository;
     private final RestTemplate restTemplate;
@@ -130,7 +137,7 @@ public class SmartEngineServiceImpl implements SmartEngineService {
 
         // 5. Construct Groq Payload using Maps (Safer serialization)
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "llama-3.3-70b-versatile"); // Use the fast LLaMA 3 model
+        requestBody.put("model", GROQ_MODEL);
         requestBody.put("temperature", 0.1); // Low temp for factual consistency
 
         List<Map<String, String>> messages = List.of(
@@ -145,33 +152,52 @@ public class SmartEngineServiceImpl implements SmartEngineService {
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(GROQ_URL, entity, Map.class);
 
-            if (response.getBody() != null) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
-                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-
-                String rawContent = (String) message.get("content");
-
-                // Clean markdown if Groq ignores system instructions
-                String cleanJson = rawContent.replace("```json", "").replace("```", "").trim();
-
-                // Map clean JSON string back to our DTO
-                RoutineConflictResponseDTO aiResult = objectMapper.readValue(cleanJson, RoutineConflictResponseDTO.class);
-                aiResult.setOriginal(request.getNewProduct()); // Ensure original product is tracked
-
-                return aiResult;
-            } else {
+            if (response.getBody() == null) {
                 throw new RuntimeException("Received empty response from Groq API.");
             }
 
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+            if (choices == null || choices.isEmpty()) {
+                throw new RuntimeException("Groq API returned no choices in the response.");
+            }
+
+            Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+            String rawContent = (String) message.get("content");
+
+            if (rawContent == null || rawContent.isBlank()) {
+                throw new RuntimeException("Groq API returned empty content.");
+            }
+
+            // Clean markdown if Groq ignores system instructions
+            String cleanJson = rawContent.replace("```json", "").replace("```", "").trim();
+
+            // Map clean JSON string back to our DTO
+            RoutineConflictResponseDTO aiResult = objectMapper.readValue(cleanJson, RoutineConflictResponseDTO.class);
+            aiResult.setOriginal(request.getNewProduct()); // Ensure original product is tracked
+
+            return aiResult;
+
+        } catch (HttpClientErrorException e) {
+            // Surface Groq's actual error body (model_not_found, invalid_api_key, rate_limit, etc.)
+            // so this is diagnosable from the logs instead of a generic message.
+            log.error("Groq API rejected the conflict-check request ({}): {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return fallbackAllow(request, "AI Validation Offline - Allowed by default");
         } catch (Exception e) {
             log.error("Smart Engine AI Error: {}", e.getMessage(), e);
-            // Fallback: If AI fails, allow the product to pass safely to not block the user
-            return RoutineConflictResponseDTO.builder()
-                    .hasConflict(false)
-                    .reason("AI Validation Offline - Allowed by default")
-                    .original(request.getNewProduct())
-                    .alternative("")
-                    .build();
+            // Fallback: If AI fails, allow the product to pass safely to not block the user.
+            // NOTE: this means a real ingredient conflict will NOT be caught while Groq is failing.
+            // Consider surfacing a warning banner to the user/admin when this fallback path is hit
+            // repeatedly, since it silently disables the safety check rather than just degrading UX.
+            return fallbackAllow(request, "AI Validation Offline - Allowed by default");
         }
+    }
+
+    private RoutineConflictResponseDTO fallbackAllow(RoutineConflictRequestDTO request, String reason) {
+        return RoutineConflictResponseDTO.builder()
+                .hasConflict(false)
+                .reason(reason)
+                .original(request.getNewProduct())
+                .alternative("")
+                .build();
     }
 }
