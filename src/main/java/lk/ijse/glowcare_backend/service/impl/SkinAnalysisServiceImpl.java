@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -22,6 +23,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class SkinAnalysisServiceImpl implements SkinAnalysisService {
+
+    // Groq deprecated llama-3.3-70b-versatile on 2026-08-16.
+    // Recommended replacements per Groq's deprecation notice: openai/gpt-oss-120b or qwen/qwen3.6-27b.
+    private static final String GROQ_MODEL = "openai/gpt-oss-120b";
 
     private final SkinQuestionsRepository questionRepo;
     private final RestTemplate restTemplate;
@@ -121,7 +126,7 @@ public class SkinAnalysisServiceImpl implements SkinAnalysisService {
 
         // 4. Construct Groq Payload using Maps (Safer than manual String replacement)
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "llama-3.3-70b-versatile");
+        requestBody.put("model", GROQ_MODEL);
         requestBody.put("temperature", 0.2);
 
         List<Map<String, String>> messages = List.of(
@@ -136,22 +141,33 @@ public class SkinAnalysisServiceImpl implements SkinAnalysisService {
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(GROQ_URL, entity, Map.class);
 
-            if (response.getBody() != null) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
-                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-
-                String rawContent = (String) message.get("content");
-
-                String cleanJson = rawContent.replace("```json", "").replace("```", "").trim();
-
-                return cleanJson;
-            } else {
+            if (response.getBody() == null) {
                 throw new RuntimeException("Received empty response from Groq API.");
             }
 
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+            if (choices == null || choices.isEmpty()) {
+                throw new RuntimeException("Groq API returned no choices in the response.");
+            }
+
+            Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+            String rawContent = (String) message.get("content");
+
+            if (rawContent == null || rawContent.isBlank()) {
+                throw new RuntimeException("Groq API returned empty content.");
+            }
+
+            return rawContent.replace("```json", "").replace("```", "").trim();
+
+        } catch (HttpClientErrorException e) {
+            // Surface Groq's actual error body (model_not_found, invalid_api_key, rate_limit, etc.)
+            // instead of a generic message, so the real cause is visible in logs and can be
+            // propagated to the client by the controller.
+            log.error("Groq API rejected the request ({}): {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Groq API error (" + e.getStatusCode() + "): " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
             log.error("Error calling Groq API for skin analysis: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to analyze skin data via AI.");
+            throw new RuntimeException("Failed to analyze skin data via AI: " + e.getMessage(), e);
         }
     }
 }
